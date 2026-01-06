@@ -1,0 +1,1477 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RKIMG Web UI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100">
+  <div class="max-w-6xl mx-auto px-4 py-6">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-semibold">RKIMG Web UI</h1>
+        <p class="text-sm text-zinc-400">Fast, no guessing. Browser picker + thumbnails + result preview.</p>
+      </div>
+      <div class="text-xs text-zinc-400 flex items-center gap-2">
+        <span id="resumePill" class="hidden px-2 py-1 rounded bg-zinc-900 border border-zinc-800">Resumed job</span>
+        <span class="px-2 py-1 rounded bg-zinc-900 border border-zinc-800">Port 7860</span>
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-2 items-center">
+      <button class="tab btn" data-tab="generate">Generate</button>
+      <button class="tab btn" data-tab="edit">Edit</button>
+      <button class="tab btn" data-tab="upscale">Upscale</button>
+      <button class="tab btn" data-tab="facefix">Facefix</button>
+
+      <div class="flex-1"></div>
+
+      <!-- Active jobs (resume) -->
+      <div class="flex items-center gap-2">
+        <select id="activeJobs" class="hidden rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm">
+          <option value="">Active jobs…</option>
+        </select>
+        <button id="btnResume" class="btn hidden">Resume</button>
+      </div>
+
+      <button id="btnSchema" class="btn">Reload args</button>
+      <button id="btnHistory" class="btn">History</button>
+    </div>
+
+    <div id="toast" class="hidden mt-4 p-3 rounded-lg border border-zinc-800 bg-zinc-900 text-sm"></div>
+
+    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- LEFT -->
+      <div class="lg:col-span-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="flex items-center justify-between">
+          <h2 id="panelTitle" class="text-lg font-medium">Generate</h2>
+          <div class="flex items-center gap-2">
+            <button id="toggleLogs" class="btn">Show logs</button>
+            <button id="runBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-semibold">Run</button>
+          </div>
+        </div>
+
+        <!-- IO cards -->
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div id="inputCard" class="rounded-2xl border border-zinc-800 bg-black/20 p-3">
+            <div class="flex items-center justify-between">
+              <div class="text-xs text-zinc-400">Input (source)</div>
+              <button id="pasteInput" class="btn text-xs">Paste path</button>
+            </div>
+            <div class="mt-2 text-xs text-zinc-500">
+              Select an image in Browser and click <b>Use as INPUT</b> (or double-click image).
+            </div>
+            <input id="inputPath" class="mt-2 w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm"
+                   placeholder="Input image file" />
+            <div class="mt-2 flex gap-2">
+              <button id="clearInput" class="btn">Clear</button>
+              <button id="smartOutFromInput" class="btn">Smart output name</button>
+            </div>
+            <div id="inputPreviewWrap" class="mt-3 hidden">
+              <div class="flex items-center justify-between">
+                <div class="text-xs text-zinc-500">Source preview</div>
+                <div class="flex gap-2">
+                  <button id="openInput" class="btn text-xs">Open</button>
+                  <button id="copyInput" class="btn text-xs">Copy path</button>
+                </div>
+              </div>
+              <img id="inputPreview" class="mt-2 rounded-xl border border-zinc-800 max-h-56 object-contain w-full bg-black/40 cursor-zoom-in" />
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-zinc-800 bg-black/20 p-3">
+            <div class="flex items-center justify-between">
+              <div class="text-xs text-zinc-400">Output</div>
+              <button id="pasteOutDir" class="btn text-xs">Paste dir</button>
+            </div>
+            <div class="mt-2 text-xs text-zinc-500">
+              Browse to folder and click <b>Use current path as OUTPUT dir</b>.
+            </div>
+
+            <input id="outDir" class="mt-2 w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm"
+                   placeholder="Output directory" />
+            <input id="outName" class="mt-2 w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm"
+                   placeholder="result.png" />
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button id="resetOutName" class="btn">New name</button>
+              <button id="clearOutDir" class="btn">Clear</button>
+              <button id="copyOutPath" class="btn">Copy output path</button>
+            </div>
+
+            <div id="outputPreviewWrap" class="mt-3 hidden">
+              <div class="flex items-center justify-between">
+                <div class="text-xs text-zinc-500">Result preview</div>
+                <div class="flex gap-2">
+                  <button id="openOutput" class="btn text-xs">Open</button>
+                  <button id="copyOutput" class="btn text-xs">Copy path</button>
+                </div>
+              </div>
+              <img id="outputPreview" class="mt-2 rounded-xl border border-zinc-800 max-h-56 object-contain w-full bg-black/40 cursor-zoom-in" />
+              <div class="mt-2 text-xs text-zinc-400 break-all" id="outputPathLine"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="mt-4">
+          <div class="flex items-center justify-between text-xs text-zinc-400">
+            <div id="jobLine">Idle</div>
+            <div id="jobEta" class="text-zinc-500"></div>
+          </div>
+          <div class="mt-2 h-2 rounded-full bg-zinc-800 overflow-hidden">
+            <div id="bar" class="h-2 w-0 bg-emerald-500 transition-all"></div>
+            <div id="barInd" class="hidden h-2 w-1/3 bg-emerald-500/70 animate-pulse"></div>
+          </div>
+          <div id="jobActions" class="hidden mt-2 flex flex-wrap gap-2">
+            <button id="btnOpenOutputQuick" class="btn">Open output</button>
+            <button id="btnCopyOutputQuick" class="btn">Copy output path</button>
+          </div>
+        </div>
+
+        <!-- Params -->
+        <div class="mt-4 rounded-2xl border border-zinc-800 bg-black/20 p-3">
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-zinc-400">Parameters</div>
+            <div class="text-xs text-zinc-500" id="paramHint">Dropdowns where possible.</div>
+          </div>
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" id="formArea"></div>
+        </div>
+
+        <!-- Logs -->
+        <div id="logWrap" class="hidden mt-4">
+          <label class="text-xs text-zinc-400">Logs</label>
+          <pre id="log" class="mt-2 h-72 overflow-auto rounded-xl border border-zinc-800 bg-black/40 p-3 text-xs"></pre>
+        </div>
+      </div>
+
+      <!-- RIGHT: Browser -->
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-medium">Browser</h2>
+          <label class="text-xs text-zinc-400 flex items-center gap-2">
+            <input id="showHidden" type="checkbox" class="accent-zinc-200">
+            show hidden
+          </label>
+        </div>
+
+        <div class="mt-3 flex gap-2">
+          <input id="path" class="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm"
+                 value="{{ base }}" />
+          <button id="go" class="btn">Go</button>
+        </div>
+
+        <div class="mt-3 grid grid-cols-1 gap-2">
+          <button id="useAsInputBtn" class="btn">Use selected as INPUT</button>
+          <button id="useCurrentAsOutDirBtn" class="btn">Use current path as OUTPUT dir</button>
+          <button id="useSelectedAsOutDirBtn" class="btn">Use selected folder as OUTPUT dir</button>
+          <button id="useAsOutNameBtn" class="btn">Use selected file name as OUTPUT name</button>
+        </div>
+
+        <div class="mt-2 text-xs text-zinc-500">
+          Selected: <span id="picked" class="text-zinc-200">—</span>
+        </div>
+
+        <div id="list" class="mt-3 h-[26rem] overflow-auto rounded-xl border border-zinc-800 bg-black/20"></div>
+
+        <p class="mt-2 text-xs text-zinc-500">
+          Single-click selects. Double-click folders to enter. Double-click an image sets INPUT (when available).
+        </p>
+      </div>
+    </div>
+
+    <!-- History modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/60">
+      <div class="max-w-4xl mx-auto mt-16 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-medium">History</h3>
+          <button id="closeModal" class="btn">Close</button>
+        </div>
+        <div id="history" class="mt-3 max-h-[60vh] overflow-auto rounded-xl border border-zinc-800 bg-black/20 p-3 text-xs"></div>
+      </div>
+    </div>
+
+  <!-- Mask painter modal -->
+  <div id="maskModal" class="hidden fixed inset-0 bg-black/70 z-50">
+    <div class="absolute inset-0 flex flex-col p-4">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="text-lg font-semibold text-zinc-100">Paint Mask</div>
+          <div class="text-xs text-zinc-400">White = edit • Black = keep</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="maskCancel" class="btn">Cancel</button>
+          <button id="maskSave" class="btn">Save mask</button>
+        </div>
+      </div>
+
+      <div class="mt-3 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3 flex-1 min-h-0">
+        <div class="rounded-2xl border border-zinc-800 bg-black/30 p-2 flex flex-col min-h-0">
+          <div class="text-xs text-zinc-500 mb-2">Paint on the image. Use Erase to protect areas.</div>
+          <div class="flex-1 min-h-0 overflow-auto rounded-xl border border-zinc-800 bg-black/40 p-2">
+            <canvas id="maskPainter" class="block max-w-full h-auto"></canvas>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-zinc-800 bg-black/30 p-3 space-y-3">
+          <div class="text-xs text-zinc-400">Brush</div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-zinc-500">Size</label>
+              <input id="maskBrushSize" type="range" min="1" max="200" value="24" class="w-full">
+              <div class="text-xs text-zinc-500"><span id="maskBrushSizeVal">24</span> px</div>
+            </div>
+            <div>
+              <label class="text-xs text-zinc-500">Opacity</label>
+              <input id="maskBrushOpacity" type="range" min="0.05" max="1" step="0.05" value="1" class="w-full">
+              <div class="text-xs text-zinc-500"><span id="maskBrushOpacityVal">1.00</span></div>
+            </div>
+          </div>
+
+          <div class="text-xs text-zinc-400">Mode</div>
+          <div class="flex gap-2">
+            <button id="maskModePaint" class="btn">Paint</button>
+            <button id="maskModeErase" class="btn">Erase</button>
+          </div>
+
+          <div class="text-xs text-zinc-400">Actions</div>
+          <div class="flex flex-wrap gap-2">
+            <button id="maskUndo" class="btn text-xs">Undo</button>
+            <button id="maskRedo" class="btn text-xs">Redo</button>
+            <button id="maskClear" class="btn text-xs">Clear</button>
+            <button id="maskInvert" class="btn text-xs">Invert</button>
+            <button id="maskFit" class="btn text-xs">Fit</button>
+            <button id="maskOneToOne" class="btn text-xs">1:1</button>
+          </div>
+
+          <div class="pt-2 border-t border-zinc-800">
+            <div class="text-xs text-zinc-400 mb-1">Mask preview</div>
+            <img id="maskPreviewImg" class="w-full rounded-xl border border-zinc-800 bg-black/40" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- Lightbox viewer -->
+    <div id="viewer" class="hidden fixed inset-0 bg-black/80">
+      <div class="max-w-6xl mx-auto mt-10 p-4">
+        <div class="rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm text-zinc-300 break-all" id="viewerPath"></div>
+            <div class="flex gap-2">
+              <button id="viewerOpenNew" class="btn text-xs">Open</button>
+              <button id="viewerCopy" class="btn text-xs">Copy path</button>
+              <button id="viewerClose" class="btn text-xs">Close</button>
+            </div>
+          </div>
+          <div class="mt-3">
+            <img id="viewerImg" class="w-full max-h-[75vh] object-contain rounded-xl border border-zinc-800 bg-black/40" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+const btnClass = "px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-sm";
+function applyBtnStyle(root=document){
+  root.querySelectorAll(".btn").forEach(b => {
+    b.className = btnClass + " " + b.className + " cursor-pointer";
+  });
+}
+applyBtnStyle(document);
+
+let schema = null;
+let activeTab = "generate";
+let selected = null;
+let currentJob = null;
+let polling = null;
+let logsOpen = false;
+
+const SIZE_PRESETS = ["512x512","512x768","768x512","640x640","576x768","768x576","384x384","1024x1024","custom"];
+
+// Upscale dropdown presets
+const UPSCALE_PRESETS = {
+  scale: ["2","4"],
+  tile: ["64","96","128","192","256"],
+  overlap: ["0","16","32","48","64"],
+  cores: ["auto","0","1","2","0,1","2,0","0,1,2"]
+};
+
+// ===== Resume support =====
+const ACTIVE_JOB_KEY = "rkimg_active_job_v1";
+function saveActiveJob(jobId){ try { localStorage.setItem(ACTIVE_JOB_KEY, jobId); } catch(e){} }
+function getActiveJob(){ try { return localStorage.getItem(ACTIVE_JOB_KEY); } catch(e){ return null; } }
+function clearActiveJob(){ try { localStorage.removeItem(ACTIVE_JOB_KEY); } catch(e){} }
+
+function toast(msg, isErr=false){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  t.classList.toggle("border-red-700", isErr);
+  t.classList.toggle("border-zinc-800", !isErr);
+  setTimeout(()=>t.classList.add("hidden"), 3000);
+}
+
+function setProgress(pct, indeterminate=false){
+  const bar = document.getElementById("bar");
+  const ind = document.getElementById("barInd");
+  if (indeterminate){
+    bar.style.width = "0%";
+    ind.classList.remove("hidden");
+  } else {
+    ind.classList.add("hidden");
+    bar.style.width = (pct||0) + "%";
+  }
+}
+
+function newOutName(){ return `rkimg_${Date.now()}.png`; }
+
+function wantsInput(tab){ return (tab === "edit" || tab === "upscale" || tab === "facefix"); }
+function inputKey(tab){
+  if (tab === "edit") return "init";
+  if (tab === "upscale" || tab === "facefix") return "input";
+  return null;
+}
+
+function showQuickActions(show){
+  document.getElementById("jobActions").classList.toggle("hidden", !show);
+}
+
+function updateTabUX(){
+  document.getElementById("inputCard").classList.toggle("hidden", !wantsInput(activeTab));
+  document.getElementById("useAsInputBtn").classList.toggle("hidden", !wantsInput(activeTab));
+  setInputPreview(null);
+  setOutputPreview(null);
+  showQuickActions(false);
+
+  const hint = document.getElementById("paramHint");
+  if (activeTab === "upscale") hint.textContent = "Upscale has smart dropdown presets (tile/overlap/scale/cores).";
+  else hint.textContent = "Dropdowns where possible.";
+}
+
+function setInputPreview(path){
+  const wrap = document.getElementById("inputPreviewWrap");
+  const img = document.getElementById("inputPreview");
+  if (!path){ wrap.classList.add("hidden"); img.removeAttribute("src"); return; }
+  wrap.classList.remove("hidden");
+  img.src = "/file?path=" + encodeURIComponent(path);
+}
+
+function setOutputPreview(path){
+  const wrap = document.getElementById("outputPreviewWrap");
+  const img = document.getElementById("outputPreview");
+  const line = document.getElementById("outputPathLine");
+  if (!path){ wrap.classList.add("hidden"); img.removeAttribute("src"); line.textContent=""; return; }
+  wrap.classList.remove("hidden");
+  img.src = "/file?path=" + encodeURIComponent(path) + "&t=" + Date.now();
+  line.textContent = path;
+  showQuickActions(true);
+}
+
+function effectiveOutputPath(){
+  const d = document.getElementById("outDir").value.trim();
+  const n = document.getElementById("outName").value.trim();
+  if (!d || !n) return null;
+  return d.replace(/\/+$/,"") + "/" + n;
+}
+
+function persistKey(){ return "rkimg_ui_state_v2"; }
+function loadState(){
+  try { return JSON.parse(localStorage.getItem(persistKey()) || "{}"); } catch { return {}; }
+}
+function saveState(st){
+  try { localStorage.setItem(persistKey(), JSON.stringify(st)); } catch {}
+}
+function getTabState(tab){
+  const st = loadState();
+  return st[tab] || {};
+}
+function setTabState(tab, obj){
+  const st = loadState();
+  st[tab] = {...(st[tab]||{}), ...obj};
+  saveState(st);
+}
+
+async function loadSchema(){
+  const r = await fetch("/api/schema");
+  schema = await r.json();
+  renderForm(activeTab);
+  toast("Loaded args");
+}
+
+function mkSizeField(){
+  const row = document.createElement("div");
+  row.className = "space-y-1";
+  const label = document.createElement("label");
+  label.className = "text-xs text-zinc-400";
+  label.textContent = "--size";
+  row.appendChild(label);
+
+  const help = document.createElement("div");
+  help.className = "text-xs text-zinc-500";
+  help.textContent = "Pick a preset or choose custom.";
+  row.appendChild(help);
+
+  const sel = document.createElement("select");
+  sel.className = "w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm";
+  sel.dataset.key = "size_preset";
+  for (const p of SIZE_PRESETS){
+    const o = document.createElement("option");
+    o.value = p;
+    o.textContent = (p === "custom" ? "Custom…" : p);
+    sel.appendChild(o);
+  }
+
+  const custom = document.createElement("input");
+  custom.type = "text";
+  custom.dataset.key = "size_custom";
+  custom.placeholder = "Custom size like 832x512";
+  custom.className = "w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm hidden";
+
+  sel.onchange = ()=> {
+    custom.classList.toggle("hidden", sel.value !== "custom");
+    setTabState(activeTab, {"size_preset": sel.value});
+  };
+  custom.onchange = ()=> setTabState(activeTab, {"size_custom": custom.value});
+
+  row.appendChild(sel);
+  row.appendChild(custom);
+  return row;
+}
+
+function mkSelectField(flag, dest, helpText, options){
+  const row = document.createElement("div");
+  row.className = "space-y-1";
+  const label = document.createElement("label");
+  label.className = "text-xs text-zinc-400";
+  label.textContent = flag;
+  row.appendChild(label);
+  const help = document.createElement("div");
+  help.className = "text-xs text-zinc-500";
+  help.textContent = helpText || "";
+  row.appendChild(help);
+
+  const sel = document.createElement("select");
+  sel.className = "w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm";
+  sel.dataset.key = dest;
+
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "(default)";
+  sel.appendChild(empty);
+
+  for (const o of options){
+    const opt = document.createElement("option");
+    opt.value = o; opt.textContent = o;
+    sel.appendChild(opt);
+  }
+  sel.onchange = ()=> setTabState(activeTab, {[dest]: sel.value});
+  row.appendChild(sel);
+  return row;
+}
+
+function mkField(opt){
+  const row = document.createElement("div");
+  row.className = "space-y-1";
+
+  if (opt.dest === "out" || opt.dest === "init" || opt.dest === "input") return null;
+  if (opt.dest === "mask" || opt.dest === "mask_blur") return null; // handled by custom mask painter UI
+  if (opt.dest === "size") return mkSizeField();
+
+  if (activeTab === "upscale"){
+    if (opt.dest === "scale") return mkSelectField("--scale", "scale", "Upscale factor", UPSCALE_PRESETS.scale);
+    if (opt.dest === "tile") return mkSelectField("--tile", "tile", "Tile size (bigger = faster, more RAM)", UPSCALE_PRESETS.tile);
+    if (opt.dest === "overlap") return mkSelectField("--overlap", "overlap", "Tile overlap (reduce seams)", UPSCALE_PRESETS.overlap);
+    if (opt.dest === "cores") return mkSelectField("--cores", "cores", "NPU cores selection", UPSCALE_PRESETS.cores);
+  }
+
+  const label = document.createElement("label");
+  label.className = "text-xs text-zinc-400";
+  label.innerHTML = `<span>${opt.flag}</span>${opt.required ? " <span class='text-red-300'>(required)</span>" : ""}`;
+  row.appendChild(label);
+
+  const help = document.createElement("div");
+  help.className = "text-xs text-zinc-500";
+  help.textContent = opt.help || "";
+  row.appendChild(help);
+
+  let el;
+  if (opt.type === "choice" && opt.choices){
+    el = document.createElement("select");
+    el.className = "w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm";
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "(default)";
+    el.appendChild(empty);
+    for (const c of opt.choices){
+      const o = document.createElement("option");
+      o.value = c; o.textContent = c;
+      el.appendChild(o);
+    }
+    el.onchange = ()=> setTabState(activeTab, {[opt.dest]: el.value});
+  } else if (opt.type === "bool"){
+    el = document.createElement("input");
+    el.type = "checkbox";
+    el.className = "accent-zinc-200";
+    el.onchange = ()=> setTabState(activeTab, {[opt.dest]: el.checked});
+  } else {
+    el = document.createElement("input");
+    el.type = "text";
+    el.placeholder = opt.default ? `default: ${opt.default}` : "";
+    el.className = "w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm";
+    el.onchange = ()=> setTabState(activeTab, {[opt.dest]: el.value});
+  }
+  el.dataset.key = opt.dest;
+  row.appendChild(el);
+  return row;
+}
+
+function applySavedToForm(){
+  const st = getTabState(activeTab);
+
+  if (st.outDir) document.getElementById("outDir").value = st.outDir;
+  if (st.outName) document.getElementById("outName").value = st.outName;
+  if (st.inputPath) document.getElementById("inputPath").value = st.inputPath;
+
+  const sp = document.querySelector(`[data-key="size_preset"]`);
+  const sc = document.querySelector(`[data-key="size_custom"]`);
+  if (sp && st.size_preset){
+    sp.value = st.size_preset;
+    sc?.classList.toggle("hidden", sp.value !== "custom");
+  }
+  if (sc && st.size_custom) sc.value = st.size_custom;
+
+  document.querySelectorAll("#formArea input, #formArea select").forEach(el=>{
+    const k = el.dataset.key;
+    if (!k || k === "size_preset" || k === "size_custom") return;
+    if (st[k] === undefined) return;
+    if (el.type === "checkbox") el.checked = !!st[k];
+    else el.value = st[k];
+  });
+
+  // Prefill upscale dropdowns if empty (better UX)
+  if (activeTab === "upscale"){
+    const st2 = getTabState(activeTab);
+    if (!st2.scale) setTabState(activeTab, {scale:"4"});
+    if (!st2.tile) setTabState(activeTab, {tile:"128"});
+    if (!st2.overlap) setTabState(activeTab, {overlap:"32"});
+    if (!st2.cores) setTabState(activeTab, {cores:"auto"});
+
+    // Apply these prefills to DOM if still empty
+    ["scale","tile","overlap","cores"].forEach(k=>{
+      const el = document.querySelector(`[data-key="${k}"]`);
+      const v = (getTabState(activeTab)[k] || "");
+      if (el && !el.value && v) el.value = v;
+    });
+  }
+
+  if (wantsInput(activeTab)){
+    const p = document.getElementById("inputPath").value.trim();
+    if (p) setInputPreview(p);
+  }
+}
+
+function renderForm(tab){
+  activeTab = tab;
+  document.getElementById("panelTitle").textContent = tab[0].toUpperCase()+tab.slice(1);
+  const area = document.getElementById("formArea");
+  area.innerHTML = "";
+
+  const opts = schema?.[tab] || [];
+  const preferred = ["prompt","size","backend","pipeline","unet","no_prefer_b2_static","style","steps","guidance","seed","neg","no_auto_neg",
+                     "mode","strength","no_auto_strength",
+                     "rknn","tile","overlap","scale","cores",
+                     "upscale","bg_upscale"];
+  const rank = (d)=> { const i = preferred.indexOf(d); return i === -1 ? 999 : i; };
+  opts.sort((a,b)=> rank(a.dest)-rank(b.dest));
+
+  for (const opt of opts){
+    const f = mkField(opt);
+    if (f) area.appendChild(f);
+  }
+
+  const defaultOutDir = "/home/rock/Stable-Diffusion-1.5-LCM-ONNX-RKNN2/images";
+  if (!document.getElementById("outDir").value.trim()) document.getElementById("outDir").value = defaultOutDir;
+  if (!document.getElementById("outName").value.trim()) document.getElementById("outName").value = newOutName();
+
+  if (!wantsInput(activeTab)){
+    document.getElementById("inputPath").value = "";
+  }
+
+  document.getElementById("jobLine").textContent = "Idle";
+  document.getElementById("jobEta").textContent = "";
+  setProgress(0,false);
+
+  if (tab === "edit") injectMaskBlock(area);
+  updateTabUX();
+  applySavedToForm();
+}
+
+function collectArgs(){
+  const args = {};
+
+  const out = effectiveOutputPath();
+  if (out) args["out"] = out;
+
+  if (wantsInput(activeTab)){
+    const k = inputKey(activeTab);
+    const v = document.getElementById("inputPath").value.trim();
+    if (k && v) args[k] = v;
+  }
+
+  const sp = document.querySelector(`[data-key="size_preset"]`)?.value || "";
+  const sc = document.querySelector(`[data-key="size_custom"]`)?.value || "";
+  if (sp && sp !== "custom") args["size"] = sp;
+  else if (sc.trim()) args["size"] = sc.trim();
+
+  document.querySelectorAll("#formArea input, #formArea select").forEach(el=>{
+    const key = el.dataset.key;
+    if (!key) return;
+    if (key === "size_preset" || key === "size_custom") return;
+    if (el.type === "checkbox") args[key] = el.checked;
+    else if (el.value !== "") args[key] = el.value;
+  });
+
+  return args;
+}
+
+
+// ---------------------- Mask painter (Edit/Inpaint) ----------------------
+let currentMaskPath = "";
+let painterImg = null;
+let painter = {
+  mode: "paint", // paint | erase
+  brushSize: 24,
+  opacity: 1.0,
+  viewScale: 1.0,
+  panX: 0,
+  panY: 0,
+  isDown: false,
+  lastX: 0,
+  lastY: 0,
+  undo: [],
+  redo: [],
+  imgW: 0,
+  imgH: 0,
+  baseCanvas: null,   // offscreen: original image
+  maskCanvas: null,   // offscreen: mask (grayscale)
+  viewCanvas: null,   // onscreen
+  viewCtx: null,
+};
+
+function injectMaskBlock(area){
+  // Only for Edit tab
+  const card = document.createElement("div");
+  card.className = "md:col-span-2 rounded-2xl border border-zinc-800 bg-black/20 p-3";
+  card.innerHTML = `
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-xs text-zinc-400">Mask (optional)</div>
+        <div class="text-xs text-zinc-500">White = edit • Black = keep</div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button id="btnPaintMask" class="btn text-xs">Paint Mask</button>
+        <button id="btnPickMask" class="btn text-xs">Pick from Browser</button>
+        <button id="btnClearMask" class="btn text-xs">Clear</button>
+        <button id="btnInvertMask" class="btn text-xs">Invert</button>
+      </div>
+    </div>
+
+    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div class="space-y-1">
+        <label class="text-xs text-zinc-400">--mask</label>
+        <div class="text-xs text-zinc-500">When set, Edit uses inpainting mode (new script). Leave empty for legacy edit.</div>
+        <input id="maskPath" data-key="mask" class="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm"
+               placeholder="(none)" value="" />
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs text-zinc-400">--mask-blur</label>
+        <div class="text-xs text-zinc-500">Feather edge (pixels). Higher = softer transition.</div>
+        <div class="flex items-center gap-3">
+          <input id="maskBlur" data-key="mask_blur" type="range" min="0" max="64" value="8" class="w-full">
+          <div class="text-xs text-zinc-500 w-12 text-right"><span id="maskBlurVal">8</span>px</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3 flex items-center gap-3">
+      <img id="maskThumb" class="hidden h-20 w-20 rounded-xl border border-zinc-800 object-cover bg-black/40" />
+      <div class="text-xs text-zinc-500" id="maskStatus">No mask selected.</div>
+    </div>
+  `;
+  area.appendChild(card);
+
+  // IMPORTANT: apply button styling to dynamically injected .btn elements
+  applyBtnStyle(card);
+
+  // wiring
+  const blur = card.querySelector("#maskBlur");
+  const blurVal = card.querySelector("#maskBlurVal");
+  blur.oninput = ()=> {
+    blurVal.textContent = blur.value;
+    setTabState("edit", {mask_blur: blur.value});
+  };
+
+  const maskPathEl = card.querySelector("#maskPath");
+  const thumb = card.querySelector("#maskThumb");
+  const status = card.querySelector("#maskStatus");
+
+  function setMaskPath(p){
+    currentMaskPath = (p || "").trim();
+    maskPathEl.value = currentMaskPath;
+    if (!currentMaskPath){
+      thumb.classList.add("hidden");
+      status.textContent = "No mask selected.";
+      return;
+    }
+    thumb.src = "/file?path=" + encodeURIComponent(currentMaskPath) + "&t=" + Date.now();
+    thumb.classList.remove("hidden");
+    status.textContent = currentMaskPath;
+  }
+
+  // restore from saved state
+  const saved = getTabState("edit") || {};
+  if (saved.mask) setMaskPath(saved.mask);
+  if (saved.mask_blur !== undefined && saved.mask_blur !== null && String(saved.mask_blur) !== ""){
+    blur.value = String(saved.mask_blur);
+    blurVal.textContent = String(saved.mask_blur);
+  }
+
+  maskPathEl.onchange = ()=>{
+    setMaskPath(maskPathEl.value);
+    setTabState("edit", {mask: currentMaskPath});
+  };
+
+  card.querySelector("#btnClearMask").onclick = ()=>{
+    setMaskPath("");
+    setTabState("edit", {mask: ""});
+  };
+
+  card.querySelector("#btnPickMask").onclick = ()=>{
+    if (!selected || !selected.path) return toast("Pick an image in Browser first.", true);
+    const p = selected.path;
+    if (!/\.(png|jpg|jpeg|webp|bmp)$/i.test(p)) return toast("Mask must be an image file.", true);
+    setMaskPath(p);
+    setTabState("edit", {mask: p});
+    toast("Mask selected.");
+  };
+
+  card.querySelector("#btnInvertMask").onclick = async ()=>{
+    if (!currentMaskPath) return toast("No mask to invert.", true);
+    try{
+      const r = await fetch("/api/mask/invert", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({path: currentMaskPath})
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "invert failed");
+      setMaskPath(j.path);
+      setTabState("edit", {mask: j.path});
+      toast("Mask inverted.");
+    }catch(ex){
+      toast(ex.message || String(ex), true);
+    }
+  };
+
+  card.querySelector("#btnPaintMask").onclick = async ()=>{
+    const inPath = document.getElementById("inputPath").value.trim();
+    if (!inPath) return toast("Select an input image first.", true);
+    await openMaskPainter(inPath, (p)=> {
+      setMaskPath(p);
+      setTabState("edit", {mask: p});
+    });
+  };
+}
+
+function pushUndo(){
+  const ctx = painter.maskCanvas.getContext("2d");
+  painter.undo.push(ctx.getImageData(0,0,painter.imgW,painter.imgH));
+  if (painter.undo.length > 30) painter.undo.shift();
+  painter.redo = [];
+}
+
+function applyImageData(imgData){
+  const ctx = painter.maskCanvas.getContext("2d");
+  ctx.putImageData(imgData, 0, 0);
+  redrawPainter();
+}
+
+function redrawPainter(){
+  const c = painter.viewCanvas;
+  const ctx = painter.viewCtx;
+  if (!c || !ctx) return;
+
+  const maxW = c.parentElement.clientWidth - 8;
+  const maxH = c.parentElement.clientHeight - 8;
+  const scale = Math.min(maxW / painter.imgW, maxH / painter.imgH, 1.0);
+  painter.viewScale = scale;
+
+  c.width = Math.floor(painter.imgW * scale);
+  c.height = Math.floor(painter.imgH * scale);
+
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(painter.baseCanvas, 0, 0, c.width, c.height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.45;
+  ctx.globalCompositeOperation = "screen";
+  ctx.drawImage(painter.maskCanvas, 0, 0, c.width, c.height);
+  ctx.restore();
+
+  const prev = document.getElementById("maskPreviewImg");
+  if (prev) prev.src = painter.maskCanvas.toDataURL("image/png");
+}
+
+function canvasToImage(path){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.onerror = ()=>reject(new Error("Failed to load image"));
+    img.src = "/file?path=" + encodeURIComponent(path) + "&ts=" + Date.now();
+  });
+}
+
+async function openMaskPainter(inputPath, onSaved){
+  const modal = document.getElementById("maskModal");
+  const canvas = document.getElementById("maskPainter");
+  modal.classList.remove("hidden");
+
+  // ensure modal buttons styled (in case)
+  applyBtnStyle(modal);
+
+  const size = document.getElementById("maskBrushSize");
+  const sizeVal = document.getElementById("maskBrushSizeVal");
+  const op = document.getElementById("maskBrushOpacity");
+  const opVal = document.getElementById("maskBrushOpacityVal");
+  size.oninput = ()=>{ painter.brushSize = Number(size.value); sizeVal.textContent = size.value; };
+  op.oninput = ()=>{ painter.opacity = Number(op.value); opVal.textContent = Number(op.value).toFixed(2); };
+
+  document.getElementById("maskModePaint").onclick = ()=>{ painter.mode="paint"; toast("Mode: paint"); };
+  document.getElementById("maskModeErase").onclick = ()=>{ painter.mode="erase"; toast("Mode: erase"); };
+
+  painterImg = await canvasToImage(inputPath);
+  painter.imgW = painterImg.naturalWidth || painterImg.width;
+  painter.imgH = painterImg.naturalHeight || painterImg.height;
+
+  painter.baseCanvas = document.createElement("canvas");
+  painter.baseCanvas.width = painter.imgW; painter.baseCanvas.height = painter.imgH;
+  painter.baseCanvas.getContext("2d").drawImage(painterImg,0,0);
+
+  painter.maskCanvas = document.createElement("canvas");
+  painter.maskCanvas.width = painter.imgW; painter.maskCanvas.height = painter.imgH;
+  const mctx = painter.maskCanvas.getContext("2d");
+  mctx.fillStyle = "black"; mctx.fillRect(0,0,painter.imgW,painter.imgH);
+
+  painter.viewCanvas = canvas;
+  painter.viewCtx = canvas.getContext("2d");
+
+  painter.undo=[]; painter.redo=[];
+  pushUndo();
+  redrawPainter();
+
+  function toImgXY(ev){
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) / painter.viewScale;
+    const y = (ev.clientY - rect.top) / painter.viewScale;
+    return {x: Math.max(0,Math.min(painter.imgW, x)), y: Math.max(0,Math.min(painter.imgH, y))};
+  }
+
+  function stroke(x0,y0,x1,y1){
+    const ctx = painter.maskCanvas.getContext("2d");
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = painter.brushSize * 2;
+    ctx.globalAlpha = painter.opacity;
+    ctx.strokeStyle = (painter.mode === "paint") ? "white" : "black";
+    ctx.beginPath();
+    ctx.moveTo(x0,y0);
+    ctx.lineTo(x1,y1);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  canvas.onpointerdown = (ev)=>{
+    painter.isDown = true;
+    const p = toImgXY(ev);
+    painter.lastX = p.x; painter.lastY = p.y;
+    pushUndo();
+    canvas.setPointerCapture(ev.pointerId);
+  };
+  canvas.onpointermove = (ev)=>{
+    if (!painter.isDown) return;
+    const p = toImgXY(ev);
+    stroke(painter.lastX, painter.lastY, p.x, p.y);
+    painter.lastX = p.x; painter.lastY = p.y;
+    redrawPainter();
+  };
+  canvas.onpointerup = ()=>{ painter.isDown = false; };
+  canvas.onpointercancel = ()=>{ painter.isDown = false; };
+
+  document.getElementById("maskUndo").onclick = ()=>{
+    if (painter.undo.length <= 1) return;
+    const cur = painter.undo.pop();
+    painter.redo.push(cur);
+    applyImageData(painter.undo[painter.undo.length-1]);
+  };
+  document.getElementById("maskRedo").onclick = ()=>{
+    if (!painter.redo.length) return;
+    const img = painter.redo.pop();
+    painter.undo.push(img);
+    applyImageData(img);
+  };
+  document.getElementById("maskClear").onclick = ()=>{
+    const ctx = painter.maskCanvas.getContext("2d");
+    pushUndo();
+    ctx.fillStyle="black"; ctx.fillRect(0,0,painter.imgW,painter.imgH);
+    redrawPainter();
+  };
+  document.getElementById("maskInvert").onclick = ()=>{
+    pushUndo();
+    const ctx = painter.maskCanvas.getContext("2d");
+    const d = ctx.getImageData(0,0,painter.imgW,painter.imgH);
+    for (let i=0;i<d.data.length;i+=4){
+      const v = 255 - d.data[i];
+      d.data[i]=v; d.data[i+1]=v; d.data[i+2]=v; d.data[i+3]=255;
+    }
+    ctx.putImageData(d,0,0);
+    redrawPainter();
+  };
+  document.getElementById("maskFit").onclick = ()=> redrawPainter();
+  document.getElementById("maskOneToOne").onclick = ()=>{
+    canvas.width = painter.imgW;
+    canvas.height = painter.imgH;
+    painter.viewScale = 1.0;
+    // draw without autoscaling
+    const ctx = painter.viewCtx;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(painter.baseCanvas,0,0);
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.globalCompositeOperation = "screen";
+    ctx.drawImage(painter.maskCanvas,0,0);
+    ctx.restore();
+    const prev = document.getElementById("maskPreviewImg");
+    if (prev) prev.src = painter.maskCanvas.toDataURL("image/png");
+  };
+
+  async function close(){
+    modal.classList.add("hidden");
+    canvas.onpointerdown = canvas.onpointermove = canvas.onpointerup = canvas.onpointercancel = null;
+  }
+
+  document.getElementById("maskCancel").onclick = async ()=> { await close(); };
+document.getElementById("maskSave").onclick = async ()=>{
+  try{
+    // Build a clean binary export canvas (do NOT mutate painter.maskCanvas)
+    const srcCtx = painter.maskCanvas.getContext("2d");
+    const src = srcCtx.getImageData(0, 0, painter.imgW, painter.imgH);
+
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = painter.imgW;
+    exportCanvas.height = painter.imgH;
+    const ectx = exportCanvas.getContext("2d", { willReadFrequently: true });
+    const out = ectx.createImageData(painter.imgW, painter.imgH);
+
+    // Binary threshold: white = edit, black = keep
+    for (let i = 0; i < src.data.length; i += 4) {
+      const r = src.data[i];       // maskCanvas is grayscale, so R is enough
+      const v = (r > 127) ? 255 : 0;
+      out.data[i]   = v;
+      out.data[i+1] = v;
+      out.data[i+2] = v;
+      out.data[i+3] = 255;
+    }
+
+    ectx.putImageData(out, 0, 0);
+
+    // Update preview to exactly what we export
+    const prev = document.getElementById("maskPreviewImg");
+    if (prev) prev.src = exportCanvas.toDataURL("image/png");
+
+    const dataUrl = exportCanvas.toDataURL("image/png");
+
+    const r = await fetch("/api/mask/save", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ png_data_url: dataUrl })
+    });
+
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "save failed");
+    onSaved(j.path);
+    toast("Mask saved.");
+    await close();
+  } catch(ex) {
+    toast(ex.message || String(ex), true);
+  }
+};
+
+}
+
+function smartOutName(){
+  const inP = document.getElementById("inputPath").value.trim();
+  if (!inP) return;
+  const base = inP.split("/").pop().replace(/\.[^.]+$/,"");
+  let suffix = "_out";
+  if (activeTab === "upscale") suffix = "_upscaled";
+  else if (activeTab === "facefix") suffix = "_facefix";
+  else if (activeTab === "edit") suffix = "_edit";
+  document.getElementById("outName").value = `${base}${suffix}.png`;
+  setTabState(activeTab, {outName: document.getElementById("outName").value});
+  toast("Output name set");
+}
+
+// -------- Browser ----------
+async function listDir(){
+  const path = document.getElementById("path").value;
+  const hidden = document.getElementById("showHidden").checked ? "1" : "0";
+  const r = await fetch(`/api/list?path=${encodeURIComponent(path)}&hidden=${hidden}`);
+  const j = await r.json();
+  const box = document.getElementById("list");
+  box.innerHTML = "";
+
+  if (j.error){
+    box.innerHTML = `<div class="p-3 text-sm text-red-300">${j.error}</div>`;
+    return;
+  }
+
+  const header = document.createElement("div");
+  header.className = "p-2 text-xs text-zinc-400 border-b border-zinc-800";
+  header.textContent = j.path;
+  box.appendChild(header);
+
+  const up = document.createElement("div");
+  up.className = "flex items-center gap-2 p-2 hover:bg-zinc-900 cursor-pointer border-b border-zinc-900";
+  up.innerHTML = `<div class="text-zinc-300">..</div><div class="text-xs text-zinc-500">parent</div>`;
+  up.onclick = ()=>{
+    const p = j.path.replace(/\/+$/,"");
+    const parent = p.split("/").slice(0,-1).join("/") || "/";
+    document.getElementById("path").value = parent;
+    listDir();
+  };
+  box.appendChild(up);
+
+  for (const it of j.items){
+    const row = document.createElement("div");
+    row.className = "flex items-center gap-3 p-2 hover:bg-zinc-900 cursor-pointer border-b border-zinc-900";
+
+    const left = document.createElement("div");
+    left.className = "w-10 h-10 rounded-lg bg-black/40 border border-zinc-800 flex items-center justify-center overflow-hidden";
+    if (it.is_image && it.thumb_url){
+      left.innerHTML = `<img src="${it.thumb_url}" class="w-full h-full object-cover" />`;
+    } else {
+      left.innerHTML = `<div class="text-[10px] text-zinc-500">${it.type==="dir" ? "DIR" : "FILE"}</div>`;
+    }
+
+    const mid = document.createElement("div");
+    mid.className = "flex-1 min-w-0";
+    mid.innerHTML = `<div class="text-sm text-zinc-200 truncate">${it.name}</div>
+                     <div class="text-xs text-zinc-500 truncate">${it.path}</div>`;
+
+    row.appendChild(left); row.appendChild(mid);
+
+    row.onclick = ()=>{
+      selected = it;
+      document.getElementById("picked").textContent = it.path;
+    };
+
+    row.ondblclick = ()=>{
+      if (it.type === "dir"){
+        document.getElementById("path").value = it.path;
+        listDir();
+        return;
+      }
+      if (it.type === "file" && it.is_image){
+        if (wantsInput(activeTab)){
+          document.getElementById("inputPath").value = it.path;
+          setInputPreview(it.path);
+          setTabState(activeTab, {inputPath: it.path});
+          toast("Input set (double-click)");
+        } else {
+          openViewer(it.path);
+        }
+      }
+    };
+
+    box.appendChild(row);
+  }
+}
+
+// ---- Viewer ----
+function openViewer(path){
+  const v = document.getElementById("viewer");
+  document.getElementById("viewerPath").textContent = path;
+  document.getElementById("viewerImg").src = "/file?path=" + encodeURIComponent(path) + "&t=" + Date.now();
+  v.classList.remove("hidden");
+}
+function closeViewer(){ document.getElementById("viewer").classList.add("hidden"); }
+
+document.getElementById("viewerClose").onclick = closeViewer;
+document.getElementById("viewerOpenNew").onclick = ()=>{
+  const p = document.getElementById("viewerPath").textContent;
+  window.open("/file?path=" + encodeURIComponent(p), "_blank");
+};
+document.getElementById("viewerCopy").onclick = async ()=>{
+  const p = document.getElementById("viewerPath").textContent;
+  await navigator.clipboard.writeText(p);
+  toast("Copied");
+};
+document.getElementById("viewer").addEventListener("click", (e)=>{
+  if (e.target.id === "viewer") closeViewer();
+});
+document.addEventListener("keydown", (e)=>{
+  if (e.key === "Escape") closeViewer();
+  if (e.key === "Enter" && !e.shiftKey){
+    const tag = (document.activeElement?.tagName || "").toLowerCase();
+    if (tag !== "textarea" && tag !== "input") runNow();
+  }
+});
+
+// ---- Button actions ----
+document.getElementById("useAsInputBtn").onclick = ()=>{
+  if (!wantsInput(activeTab)) return toast("Generate has no input.", true);
+  if (!selected) return toast("Select an image file first.", true);
+  if (selected.type !== "file") return toast("Input must be a file.", true);
+  document.getElementById("inputPath").value = selected.path;
+  setInputPreview(selected.path);
+  setTabState(activeTab, {inputPath: selected.path});
+  toast("Input set");
+};
+
+document.getElementById("useCurrentAsOutDirBtn").onclick = ()=>{
+  const p = document.getElementById("path").value.trim();
+  if (!p) return toast("Path is empty", true);
+  document.getElementById("outDir").value = p;
+  setTabState(activeTab, {outDir: p});
+  toast("Output dir set from current path");
+};
+
+document.getElementById("useSelectedAsOutDirBtn").onclick = ()=>{
+  if (!selected) return toast("Select a folder first.", true);
+  if (selected.type !== "dir") return toast("Selected item is not a folder.", true);
+  document.getElementById("outDir").value = selected.path;
+  setTabState(activeTab, {outDir: selected.path});
+  toast("Output dir set");
+};
+
+document.getElementById("useAsOutNameBtn").onclick = ()=>{
+  if (!selected) return toast("Select a file first.", true);
+  if (selected.type !== "file") return toast("Pick a file to use its name.", true);
+  document.getElementById("outName").value = selected.path.split("/").pop();
+  setTabState(activeTab, {outName: document.getElementById("outName").value});
+  toast("Output filename set");
+};
+
+document.getElementById("clearInput").onclick = ()=>{
+  document.getElementById("inputPath").value = "";
+  setInputPreview(null);
+  setTabState(activeTab, {inputPath: ""});
+};
+document.getElementById("clearOutDir").onclick = ()=>{
+  document.getElementById("outDir").value = "";
+  setTabState(activeTab, {outDir: ""});
+};
+document.getElementById("resetOutName").onclick = ()=>{
+  document.getElementById("outName").value = newOutName();
+  setTabState(activeTab, {outName: document.getElementById("outName").value});
+};
+document.getElementById("smartOutFromInput").onclick = smartOutName;
+
+document.getElementById("inputPath").addEventListener("change", ()=>{
+  const p = document.getElementById("inputPath").value.trim();
+  if (p) setInputPreview(p); else setInputPreview(null);
+  setTabState(activeTab, {inputPath: p});
+});
+
+document.getElementById("outDir").addEventListener("change", ()=> setTabState(activeTab, {outDir: document.getElementById("outDir").value}));
+document.getElementById("outName").addEventListener("change", ()=> setTabState(activeTab, {outName: document.getElementById("outName").value}));
+
+// Clipboard helpers
+async function pasteTo(id){
+  try{
+    const txt = await navigator.clipboard.readText();
+    if (txt){
+      document.getElementById(id).value = txt.trim();
+      document.getElementById(id).dispatchEvent(new Event("change"));
+      toast("Pasted");
+    }
+  } catch {
+    toast("Clipboard paste blocked by browser", true);
+  }
+}
+document.getElementById("pasteInput").onclick = ()=> pasteTo("inputPath");
+document.getElementById("pasteOutDir").onclick = ()=> pasteTo("outDir");
+
+async function copyText(txt){
+  await navigator.clipboard.writeText(txt);
+  toast("Copied");
+}
+document.getElementById("copyOutPath").onclick = ()=>{
+  const p = effectiveOutputPath();
+  if (!p) return toast("Output path incomplete", true);
+  copyText(p);
+};
+document.getElementById("copyInput").onclick = ()=> copyText(document.getElementById("inputPath").value.trim());
+document.getElementById("copyOutput").onclick = ()=>{
+  const p = document.getElementById("outputPathLine").textContent.trim();
+  if (!p) return toast("No output yet", true);
+  copyText(p);
+};
+
+document.getElementById("openInput").onclick = ()=>{
+  const p = document.getElementById("inputPath").value.trim();
+  if (!p) return toast("No input", true);
+  openViewer(p);
+};
+document.getElementById("openOutput").onclick = ()=>{
+  const p = document.getElementById("outputPathLine").textContent.trim();
+  if (!p) return toast("No output yet", true);
+  openViewer(p);
+};
+
+document.getElementById("btnOpenOutputQuick").onclick = ()=> document.getElementById("openOutput").click();
+document.getElementById("btnCopyOutputQuick").onclick = ()=> document.getElementById("copyOutput").click();
+
+document.getElementById("inputPreview").onclick = ()=> {
+  const p = document.getElementById("inputPath").value.trim();
+  if (p) openViewer(p);
+};
+document.getElementById("outputPreview").onclick = ()=> {
+  const p = document.getElementById("outputPathLine").textContent.trim();
+  if (p) openViewer(p);
+};
+
+// ---- Run + progress + previews ----
+let startedAt = null;
+
+async function runNow(){
+  const args = collectArgs();
+
+  if (!args.out) return toast("Output dir + filename is required.", true);
+  if ((activeTab === "generate" || activeTab === "edit") && !args.prompt){
+    return toast("--prompt is required.", true);
+  }
+  if (wantsInput(activeTab)){
+    const k = inputKey(activeTab);
+    if (!args[k]) return toast("Input image is required for this tab.", true);
+  }
+
+  setOutputPreview(null);
+  document.getElementById("log").textContent = "";
+  document.getElementById("jobLine").textContent = "Starting…";
+  document.getElementById("jobEta").textContent = "";
+  setProgress(0,true);
+  startedAt = Date.now();
+
+  const r = await fetch("/api/run", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({cmd: activeTab, args})
+  });
+  const j = await r.json();
+  if (!j.ok){
+    toast(j.error || "Run failed", true);
+    setProgress(0,false);
+    return;
+  }
+
+  currentJob = j.job_id;
+  saveActiveJob(currentJob);
+  document.getElementById("resumePill").classList.remove("hidden");
+  document.getElementById("jobLine").textContent = `Running (job ${currentJob})`;
+
+  if (polling) clearInterval(polling);
+  polling = setInterval(pollJob, 700);
+
+  setTimeout(refreshActiveJobs, 800);
+}
+
+async function pollJob(){
+  if (!currentJob) return;
+  const r = await fetch(`/api/job/${currentJob}`, {cache:"no-store"});
+  const j = await r.json();
+  if (j.error) return;
+
+  if (logsOpen){
+    document.getElementById("log").textContent = j.log_tail || "";
+    const pre = document.getElementById("log");
+    pre.scrollTop = pre.scrollHeight;
+  }
+
+  if (j.pct !== null && j.pct !== undefined && startedAt){
+    const elapsed = (Date.now()-startedAt)/1000;
+    const pct = Math.max(1, j.pct);
+    const totalEst = elapsed*(100/pct);
+    const eta = Math.max(0, totalEst-elapsed);
+    document.getElementById("jobEta").textContent = `ETA ~ ${eta.toFixed(0)}s`;
+  }
+
+  if (j.pct !== null && j.pct !== undefined){
+    setProgress(j.pct,false);
+    document.getElementById("jobLine").textContent = `Running… ${j.steps_done}/${j.total_steps} (${j.pct}%)`;
+  } else {
+    setProgress(0,true);
+  }
+
+  if (j.state === "done"){
+    clearInterval(polling); polling = null;
+    const ok = (j.rc === 0);
+    document.getElementById("jobLine").textContent = ok ? `Done in ${j.elapsed_s}s` : `Failed (rc=${j.rc})`;
+    document.getElementById("jobEta").textContent = "";
+    setProgress(ok ? 100 : 0,false);
+
+    clearActiveJob();
+    document.getElementById("resumePill").classList.add("hidden");
+
+    if (ok && j.out_exists && j.out_path){
+      setOutputPreview(j.out_path);
+      toast("Done (preview updated)");
+      listDir();
+    } else {
+      toast(ok ? "Done (output not found)" : "Run failed (show logs)", !ok);
+    }
+
+    refreshActiveJobs();
+  }
+}
+
+// ===== Active jobs dropdown + resume =====
+async function refreshActiveJobs(){
+  const sel = document.getElementById("activeJobs");
+  const btn = document.getElementById("btnResume");
+
+  try{
+    const r = await fetch("/api/jobs/active", {cache:"no-store"});
+    if (!r.ok) throw new Error("no active endpoint");
+    const jobs = await r.json();
+
+    sel.innerHTML = `<option value="">Active jobs…</option>`;
+    for (const j of jobs){
+      const opt = document.createElement("option");
+      opt.value = j.job_id;
+      const t = j.state === "running" ? "RUN" : "QUEUED";
+      const pct = (j.total_steps && j.steps_done!=null) ? ` ${j.steps_done}/${j.total_steps}` : "";
+      opt.textContent = `${t} ${j.job_id}${pct}`;
+      sel.appendChild(opt);
+    }
+
+    const has = jobs.length > 0;
+    sel.classList.toggle("hidden", !has);
+    btn.classList.toggle("hidden", !has);
+  } catch(e){
+    sel.classList.add("hidden");
+    btn.classList.add("hidden");
+  }
+}
+
+async function resumeJob(jobId){
+  if (!jobId) return;
+
+  currentJob = jobId;
+  saveActiveJob(jobId);
+  document.getElementById("resumePill").classList.remove("hidden");
+  document.getElementById("jobLine").textContent = `Resuming (job ${jobId})…`;
+  document.getElementById("jobEta").textContent = "";
+  setProgress(0,true);
+
+  startedAt = Date.now();
+
+  if (polling) clearInterval(polling);
+  polling = setInterval(pollJob, 900);
+
+  await pollJob();
+
+  toast("Resumed job");
+}
+
+document.getElementById("btnResume").onclick = async ()=>{
+  const v = document.getElementById("activeJobs").value;
+  if (!v) return toast("Pick a job from dropdown", true);
+  await resumeJob(v);
+};
+
+async function tryAutoResume(){
+  const jobId = getActiveJob();
+  if (!jobId) return;
+  await resumeJob(jobId);
+}
+
+// ---- History ----
+async function showHistory(){
+  const r = await fetch("/api/history");
+  const j = await r.json();
+  const box = document.getElementById("history");
+  box.innerHTML = "";
+  for (const rec of j){
+    const div = document.createElement("div");
+    div.className = "mb-3 p-3 rounded-xl border border-zinc-800 bg-zinc-950";
+    const out = (rec.out_path || rec.expected_out || "");
+    div.innerHTML = `
+      <div class="text-zinc-200 font-medium">${rec.ts} (rc=${rec.rc}, ${rec.elapsed_s}s)</div>
+      <div class="mt-1 text-zinc-400 break-all">${rec.cmd.join(" ")}</div>
+      <div class="mt-1 text-zinc-500 break-all">in: ${rec.src_in || "—"}</div>
+      <div class="mt-1 text-zinc-500 break-all">out: <span class="text-zinc-300">${out || "—"}</span></div>
+      <div class="mt-2 flex flex-wrap gap-2">
+        ${out ? `<button class="btn text-xs" data-openout="${out}">Open output</button>` : ``}
+        ${out ? `<button class="btn text-xs" data-copyout="${out}">Copy output</button>` : ``}
+      </div>
+      <pre class="mt-2 whitespace-pre-wrap text-zinc-300">${rec.log_tail || ""}</pre>
+    `;
+    box.appendChild(div);
+  }
+
+  applyBtnStyle(box);
+
+  box.querySelectorAll("[data-openout]").forEach(b=>{
+    b.onclick = ()=> openViewer(b.getAttribute("data-openout"));
+  });
+  box.querySelectorAll("[data-copyout]").forEach(b=>{
+    b.onclick = ()=> copyText(b.getAttribute("data-copyout"));
+  });
+
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+// ---- Wiring ----
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("bg-zinc-800"));
+    btn.classList.add("bg-zinc-800");
+    renderForm(btn.dataset.tab);
+  };
+});
+
+document.getElementById("go").onclick = listDir;
+document.getElementById("showHidden").onchange = listDir;
+document.getElementById("btnSchema").onclick = loadSchema;
+document.getElementById("runBtn").onclick = runNow;
+
+document.getElementById("btnHistory").onclick = showHistory;
+document.getElementById("closeModal").onclick = ()=>document.getElementById("modal").classList.add("hidden");
+
+document.getElementById("toggleLogs").onclick = ()=>{
+  logsOpen = !logsOpen;
+  document.getElementById("logWrap").classList.toggle("hidden", !logsOpen);
+  document.getElementById("toggleLogs").textContent = logsOpen ? "Hide logs" : "Show logs";
+};
+
+// Start
+(async ()=>{
+  await loadSchema();
+  document.querySelector(`.tab[data-tab="generate"]`).classList.add("bg-zinc-800");
+  updateTabUX();
+  await listDir();
+
+  await refreshActiveJobs();
+  await tryAutoResume();
+  setInterval(refreshActiveJobs, 4000);
+})();
+</script>
+</body>
+</html>

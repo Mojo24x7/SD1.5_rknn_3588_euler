@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Heavy assets (host on Hugging Face)
+models/
+model/
+gfpgan/weights/
+
+# Local-only data
+images/
+outputs/
+out/
+
+# WebUI runtime data
+webui/data/history.jsonl
+webui/data/masks/
+
+# OS junk
+.DS_Store
+Thumbs.db
