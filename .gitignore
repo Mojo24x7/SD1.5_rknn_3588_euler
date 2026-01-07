@@ -8,15 +8,31 @@ models/
 model/
 gfpgan/weights/
 
-# Local-only data
-images/
-outputs/
-out/
+# Local-only data (keep folders, ignore contents)
+images/*
+!images/.gitkeep
 
-# WebUI runtime data
+outputs/*
+!outputs/.gitkeep
+
+out/*
+!out/.gitkeep
+
+# WebUI runtime data (keep folders, ignore contents)
+webui/data/*
+!webui/data/.gitkeep
+webui/data/masks/*
+!webui/data/masks/.gitkeep
+
+# still ignore the history file explicitly (optional but clear)
 webui/data/history.jsonl
-webui/data/masks/
-
 # OS junk
 .DS_Store
 Thumbs.db
+
+
+# WebUI runtime data
+webui/data/*
+!webui/data/.gitkeep
+!webui/data/masks/
+!webui/data/masks/.gitkeep
