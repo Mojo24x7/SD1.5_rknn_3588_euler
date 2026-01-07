@@ -5,6 +5,11 @@ Stable Diffusion 1.5 inference runtime optimized for Rockchip RK3588 / RK3588S u
 This repository contains only code and runtime logic.  
 All heavy assets (RKNN models, Super-Resolution, GFPGAN weights) are hosted separately on Hugging Face.
 
+Since it is NOT LCM but Euler- takes much more time to generate -approximately 4-5 minutes , depending on number of steps etc. 
+but also high quality images.  Right now only 512x512 generation is possible but can upscale 4X using the built in fucntions. 
+
+For faster but a little not lifelike images LCM method can be used . url : https://docs.radxa.com/en/rock5/rock5b/app-development/rknn_toolkit_lite2_stable-diffusion
+
 ---
 
 ## Hardware target
